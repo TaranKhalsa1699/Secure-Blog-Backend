@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
+import dj_database_url
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,14 +25,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&#zqck04%i-uw1ttfworp)5i7=_u-bf#8tilxv+(cfol1$90^7'
+SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-secret-key")
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False").lower() in ("1", "true")
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")
 
-
+CSRF_TRUSTED_ORIGINS = [
+    os.getenv("CSRF_TRUSTED_ORIGIN",
+              "https://secure-blog-backend.onrender.com")
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -44,9 +49,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "accounts",
     "blog",
+    "whitenoise.runserver_nostatic",
+
 ]
 
 MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -90,18 +99,23 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        # 'ENGINE': 'django.db.backends.sqlite3',
-        # 'NAME': BASE_DIR / 'db.sqlite3',
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER"),
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT"),
+# Database
+# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(DATABASE_URL)
     }
-}
+else:
+    # Local fallback for development (avoids errors)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation
@@ -139,6 +153,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Extra recommended optimization
+WHITENOISE_KEEP_ONLY_HASHED_FILES = True
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
